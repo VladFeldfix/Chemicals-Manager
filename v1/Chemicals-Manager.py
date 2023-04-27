@@ -52,7 +52,8 @@ class main:
         fetched_values = self.cur.fetchall()
         if len(fetched_values) == 0:
             if self.pa.question("This part number is not in the database. Would you like to add a new chemical?"):
-                self.add_chemical(part_number)
+                if self.add_chemical(part_number):
+                    
     
     def add_chemical(self, part_number):
         error = False
@@ -64,8 +65,40 @@ class main:
         # storage conditions
         if not error:
             sc = self.pa.input("Storage conditions (e.g. 20-52C). [Leave empty for Room Temp]") or "Room Temp"
+        
+        # shortname
+        if not error:
+            short_name = self.pa.input("Short name (Optional)")
+        
+        # fridge
+        if not error:
+            if self.pa.question("Requires refrigeration?"):
+                fridge = "Y"
+            else:
+                fridge = "N"
+        
+        # msds
+        if not error:
+            msds = self.pa.input("MSDS Number")
+            if msds == "":
+                self.pa.error("Invalid MSDS")
+                error = True
 
+        # add new chemical to data
+        if not error:
+            if self.pa.question("Registering new chemical:\nPart number: "+part_number+"\nDescription: "+desc+"\nStorage conditions: "+sc+"\nShort name: "+short_name+"\nRequires refrigeration: "+fridge+"\nMSDS number: "+msds+"\nApprove registration?"):
+                self.cur.execute("INSERT INTO chemicals (part_number, desc, sc, shortname, fridge, msds) VALUES ('"+part_number+"','"+desc+"','"+sc+"','"+short_name+"','"+fridge+"','"+msds+"')")
+                self.con.commit()
+                self.pa.print("New chemical added successfully!")
+                return True
+            else:
+                self.pa.error("Chemical was not added to database")
+                return False
 
+        # conclusion
+        if error:
+            self.pa.error("Failed to add a new chemical!")
+            return False
         """
 
         # part_number VARCHAR(50)
