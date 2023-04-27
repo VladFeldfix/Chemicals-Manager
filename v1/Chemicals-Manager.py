@@ -20,9 +20,9 @@ class main:
         self.display_database()
 
         # display main menu
-        self.pa.main_menu["ADD CHEMICAL"] = self.add
-        self.pa.main_menu["EDIT CHEMICAL"] = self.edit_chemical
-        self.pa.main_menu["DELETE CHEMICAL"] = self.delete_chemical
+        self.pa.main_menu["REGISTER A NEW CHEMICAL AND PRINT A YELLOW LABEL"] = self.add
+        self.pa.main_menu["EDIT"] = self.edit_chemical
+        self.pa.main_menu["DELETE"] = self.delete_chemical
         self.pa.display_menu()
 
         # run PersonalAssistant
@@ -38,29 +38,66 @@ class main:
         error = False
 
         # lot number
-        lot_number = self.pa.input("Chemical lot number")
-        self.cur.execute("SELECT * FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
+        lot_number = self.pa.input("Hello, welcome to the chemical database. What is the chemical lot number please?")
+        if lot_number != "":
+            self.cur.execute("SELECT * FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
+            fetched_values = self.cur.fetchall()
+            if len(fetched_values) == 0:
+                if self.pa.question("Sorry, It seems like this lot is not registered in our database, would you like to register a new lot?"):
+                    if self.add_lot(lot_number):
+                        self.pa.print("Great, now that we added your chemical lot to the database, let's continue with the registration process. To enter the closet each chemical needs a yellow label.")
+                        self.print_yellow_label(lot_number)
+                    else:
+                        self.pa.error("Sorry, new chemical registration process cannot be completed")
+                else:
+                    self.pa.error("Sorry, new chemical registration process cannot be completed")
+            else:
+                self.print_yellow_label(lot_number)
+        else:
+            self.pa.error("Error! Invalid lot number")
+        self.pa.restart()
+    
+    def print_yellow_label(self, lot_number):
+        qty = self.pa.input("How many yellow labels do you need to print?")
+        file = open(self.pa.get_setting("Yellow labels location")+"/print.csv", 'w')
+        file.write("PART NUMBER,LOT NUMBER,SC,EXP,SHORT NAME\n")
+        self.cur.execute("SELECT * FROM chemical_lots, chemical_lots WHERE lot_number = '"+lot_number+"'")
         fetched_values = self.cur.fetchall()
-        if len(fetched_values) == 0:
-            if self.pa.question("Lot number is not in the database. Would you like to add a new lot?"):
-                self.add_lot(lot_number)
+        print(fetched_values)
+        file.close()
     
     def add_lot(self, lot_number):
         # part number
-        part_number = self.pa.input("What is the part number for lot number: "+lot_number+"?")
+        part_number = self.pa.input("To what part number lot number: "+lot_number+" belongs?")
         self.cur.execute("SELECT * FROM chemicals WHERE part_number = '"+part_number+"'")
         fetched_values = self.cur.fetchall()
         if len(fetched_values) == 0:
-            if self.pa.question("This part number is not in the database. Would you like to add a new chemical?"):
+            if self.pa.question("It seems like this chemical part number is not in the database, Would you like to register a new chemical part number?"):
                 if self.add_chemical(part_number):
-                    
+                    self.pa.print("Terrific, now that we have the chemical registered we can continue with the process of registering the lot")
+                    return True
+                else:
+                    self.pa.error("Sorry, we cannot continue registering a lot number for a product that is not in the database")
+                    return False
+            else:
+                self.pa.error("Sorry, we cannot continue registering a lot number for a product that is not in the database")
+                return False
+        else:
+            exp = self.pa.input("What is the lot expiration date? [Please insert in the following format YYYY-MM-DD]") or self.pa.today()
+            if self.pa.question("Registering new chemical lot:\nLot Number: "+lot_number+"\nPart Number: "+part_number+"\nExpiration Date: "+exp+"\nApprove registration?"):
+                self.cur.execute("INSERT INTO chemical_lots (lot_number, part_number, exp) VALUES ('"+lot_number+"','"+part_number+"','"+exp+"')")
+                self.con.commit()
+                self.pa.print("New chemical lot added successfully!")
+                return True
+            else:
+                self.pa.error("Chemical lot was not added to database")
+                return False
+
     
     def add_chemical(self, part_number):
         error = False
         # description
-        desc = self.pa.input("Chemical description")
-        if desc == "":
-            error = True
+        desc = self.pa.input("Chemical description") or "Missing description"
         
         # storage conditions
         if not error:
@@ -79,10 +116,7 @@ class main:
         
         # msds
         if not error:
-            msds = self.pa.input("MSDS Number")
-            if msds == "":
-                self.pa.error("Invalid MSDS")
-                error = True
+            msds = self.pa.input("MSDS Number (Optional)") or "-N/A-"
 
         # add new chemical to data
         if not error:
