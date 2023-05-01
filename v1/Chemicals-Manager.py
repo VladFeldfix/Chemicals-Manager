@@ -168,7 +168,7 @@ class main:
 
         # edit lot
         if ans == "LOT":
-            lot_number = self.pa.input("Edit LOT NUMBER: ")
+            lot_number = self.pa.input("Edit LOT NUMBER")
             if lot_number != "":
                 self.cur.execute("SELECT * FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
                 fetched_values = self.cur.fetchall()
@@ -192,15 +192,47 @@ class main:
 
         # edit part number
         elif ans == "PART NUMBER":
-            part_number = self.pa.input("Edit PART NUMBER: ")
+            part_number = self.pa.input("Edit PART NUMBER")
             if part_number != "":
                 # part_number VARCHAR(50), desc VARCHAR(100), sc VARCHAR(10), shortname VARCHAR(20), fridge VARCHAR(1), msds VARCHAR(50)
                 self.cur.execute("SELECT * FROM chemicals WHERE part_number = '"+part_number+"'")
                 fetched_values = self.cur.fetchall()
                 if len(fetched_values) == 0:
-                    pass
-                else:
                     self.pa.error("Error! PART NUMBER is not in the database")
+                else:
+                    # edit the part number
+                    # pull existing information
+                    # part_number = fetched_values[0][0] given
+                    desc = fetched_values[0][1]
+                    sc = fetched_values[0][2]
+                    shortname = fetched_values[0][3]
+                    fridge = fetched_values[0][4]
+                    msds = fetched_values[0][5]
+
+                    # get new values
+                    # description
+                    desc = self.pa.input("Insert DESCRIPTION [Leave empty to keep original value: "+desc+"]") or desc
+                    
+                    # storage conditions
+                    sc = self.pa.input("Insert STORAGE CONDITIONS (e.g. 20-52C). [Leave empty to keep original value: "+sc+"]") or sc
+                    
+                    # shortname
+                    shortname = self.pa.input("Insert SHORT NAME (Optional). [Leave empty to keep original value: "+shortname+"]") or shortname
+                    
+                    # fridge
+                    fridge = self.pa.choose("Requires refrigeration? [Leave empty to keep original value: "+fridge+"]", ("Y","N"), fridge)
+                    
+                    # msds
+                    msds = self.pa.input("Insert MSDS NUMBER (Optional). [Leave empty to keep original value: "+msds+"]") or msds
+
+                    # edit new chemical to data
+                    if self.pa.question("Edit chemical:\nPart number: "+part_number+"\nDescription: "+desc+"\nStorage conditions: "+sc+"\nShort name: "+shortname+"\nRequires refrigeration: "+fridge+"\nMSDS number: "+msds+"\nApprove registration?"):
+                        self.cur.execute("UPDATE chemicals SET part_number = '"+part_number+"', desc = '"+desc+"', sc = '"+sc+"', shortname = '"+shortname+"', fridge = '"+fridge+"', msds = '"+msds+"'")
+                        self.con.commit()
+                        self.pa.update_database()
+                        self.pa.print("PART NUMBER: "+part_number+" successfully updated!")
+                    else:
+                        self.pa.error("Aborting PART NUMBER update")
             else:
                 self.pa.error("Aborting PART NUMBER update")
 
@@ -211,6 +243,39 @@ class main:
     def delete_chemical(self):
         # set global variables
         error = False
+
+        # lot or part number
+        ans = self.pa.choose("What would you like to delete? [Leave empty to go back to main menu]", ("LOT","PART NUMBER"), "")
+
+        # edit lot
+        if ans == "LOT":
+            lot_number = self.pa.input("Delete LOT NUMBER")
+            if lot_number != "":
+                self.cur.execute("SELECT * FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
+                fetched_values = self.cur.fetchall()
+                if len(fetched_values) == 0:
+                    self.pa.error("Error! LOT NUMBER is not in the database")
+                else:
+                    if self.pa.question("Are you sure you want to delete LOT NUMBER: "+lot_number):
+                        self.cur.execute("DELETE FROM products WHERE part_number = '"+part_number+"'")
+                        self.con.commit()
+                        self.pa.update_database()
+                        self.pa.print("LOT NUMBER: "+lot_number+" successfully deleted!")
+                    else:
+                        self.pa.error("Aborting LOT NUMBER delete")
+            else:
+                self.pa.error("Aborting LOT NUMBER delete")
+
+        # edit part number
+        elif ans == "PART NUMBER":
+            part_number = self.pa.input("Delete PART NUMBER")
+            if part_number != "":
+                self.cur.execute("SELECT * FROM chemicals WHERE part_number = '"+part_number+"'")
+                fetched_values = self.cur.fetchall()
+                if len(fetched_values) == 0:
+                    self.pa.error("Error! PART NUMBER is not in the database")
+            else:
+                self.pa.error("Aborting PART NUMBER delete")
         self.pa.update_database()
         self.pa.restart()
 
