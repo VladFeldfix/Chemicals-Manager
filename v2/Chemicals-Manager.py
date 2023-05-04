@@ -33,7 +33,7 @@ class main:
         self.display_database()
 
         # MAIN MENU
-        self.pa.main_menu["ADD"] = self.add
+        self.pa.main_menu["PRINT YELLOW LABEL"] = self.add
         self.pa.main_menu["EDIT"] = self.edit
         self.pa.main_menu["DELETE"] = self.delete
         self.pa.main_menu["IMPORT"] = self.Import
@@ -48,45 +48,116 @@ class main:
         self.pa.display_database(self.db_location, "dbview", "part_number")
 
     def add(self):
-        ## ADD A USER
-        #- This will allow you to add a new user to the database by filling a form
+        ## PRINT YELLOW LABEL
+        #- This will allow you to add a new LOT NUMBER to the database by filling a form
         #- At the end of the form press Y to submit the form and the new user will be added to the database
-        self.pa.print(__file__)
-        # calculate last id
-        self.cur.execute("SELECT * FROM users")
-        fetched_values = self.cur.fetchall()
-        if len(fetched_values) == 0:
-            last_id = 0
-        else:
-            last_id = int(fetched_values[-1][0])
-
-        # setup a form to fill
-        fields = {}
-        fields["user_id"] = FIELD("UserID", NUMBER, last_id+1)
-        fields["user_id"].disabled = True
-        fields["user_name"] = FIELD("Name", TEXT, "Anonymous")
-        fields["phone"] = FIELD("Phone", TEXT, "000-0000000")
-        sexes = ("M", "F", "Not Specified")
-        fields["sex"] = FIELD("Sex", CHOOSE, sexes[2])
-        fields["sex"].options = sexes
-        fields["birth_date"] = FIELD("Birth Date", DATE, self.pa.today())
-        fields["photo"] = FIELD("Photo", FILE, "")
-        fields["photo"].filetypes = [("Images","*.img"), ("PNG","*.png"), ("Bitmap",".bmp"), ("JPEG", ".jpeg"), ("All Files","*.*")]
-        form = self.pa.form(fields)
-
-        if form:
-            self.cur.execute("INSERT INTO users (user_id, user_name, phone, sex, birth_date, photo) VALUES ('"+str(form["user_id"])+"','"+form["user_name"]+"','"+str(form["phone"])+"','"+form["sex"]+"','"+form["birth_date"]+"','"+form["photo"]+"')")
-            self.con.commit()
-            self.pa.print("New user added successfully!")
-        else:
-            self.pa.error("New user was NOT added to the database")
+        #- When form is successfully submitted the application will open bar tender to print a yellow label
         
+        # get lot:
+        lot_number = self.pa.input("Insert LOT NUMBER")
+        self.cur.execute("SELECT * FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
+        fetched_values = self.cur.fetchall()
+        print_yellow_lbl = False
+        if len(fetched_values) == 0:
+            add_lot = False
+            # see if part number exists
+            part_number = self.pa.input("Insert PART NUMBER")
+            self.cur.execute("SELECT * FROM chemicals WHERE part_number = '"+part_number+"'")
+            if len(fetched_values) == 0:
+                # add a new part number
+                if self.pa.question("PART NUMBER: "+part_number+" is not in the database, would you like to add it?"):
+                    # create form add chemical
+                    fields = {}
+                    fields["PART NUMBER"] = FIELD("PART NUMBER", TEXT, part_number)
+                    fields["PART NUMBER"].disabled = True
+                    fields["DESCRIPTION"] = FIELD("DESCRIPTION", TEXT, "No Description")
+                    fields["STORAGE CONDITIONS"] = FIELD("STORAGE CONDITIONS", TEXT, "Room Temp")
+                    fields["SHORT NAME"] = FIELD("SHORT NAME", TEXT, "N/A")
+                    fields["FRIDGE"] = FIELD("FRIDGE", CHOOSE, "N")
+                    fields["FRIDGE"].options = ("Y", "N")
+                    fields["MSDS"] = FIELD("MSDS", TEXT, "N/A")
+
+                    # submit form
+                    submit = self.pa.form(fields)
+
+                    # proccess given information
+                    if submit:
+                        self.cur.execute("INSERT INTO chemicals (part_number, desc, sc, shortname, fridge, msds) VALUES ('"+str(submit["PART NUMBER"])+"','"+str(submit["DESCRIPTION"])+"','"+str(submit["STORAGE CONDITIONS"])+"','"+str(submit["SHORT NAME"])+"','"+str(submit["FRIDGE"])+"','"+str(submit["MSDS"])+"')")
+                        self.con.commit()
+                        self.pa.print("New PART NUMBER added successfully!")
+                        add_lot = True
+                    else:
+                        self.pa.error("PART NUMBER adding aborted!")
+                else:
+                    self.pa.error("PART NUMBER adding aborted!")
+            else:
+                add_lot = True
+            
+            if add_lot:
+                # create form add lot
+                fields = {}
+                fields["LOT NUMBER"] = FIELD("LOT NUMBER", TEXT, lot_number)
+                fields["LOT NUMBER"].disabled = True
+                fields["PART NUMBER"] = FIELD("PART NUMBER", TEXT, part_number)
+                fields["PART NUMBER"].disabled = True
+                fields["EXPIRATION DATE"] = FIELD("EXPIRATION DATE", DATE, self.pa.today())
+            
+                # submit form
+                submit = self.pa.form(fields)
+                
+                # proccess given information
+                if submit:
+                    self.cur.execute("INSERT INTO chemical_lots (lot_number, part_number, exp) VALUES ('"+str(submit["LOT NUMBER"])+"','"+submit["PART NUMBER"]+"','"+str(submit["EXPIRATION DATE"])+"')")
+                    self.con.commit()
+                    self.pa.print("New LOT NUMBER added successfully!")
+                    print_yellow_lbl = True
+                else:
+                    self.pa.error("LOT NUMBER adding aborted!")
+            else:
+                self.pa.error("LOT NUMBER adding aborted!")
+        else:
+            print_yellow_lbl = True
+        
+        # print yellow lbl
+        if print_yellow_lbl:
+            path = self.pa.get_setting("Yellow Label filename")
+            if os.path.isfile(path):
+                os.popen(path)
+            else:
+                self.pa.fatal_error("Missing file: "+path)
+
+        # resptart
         if not self.pa.database_is_displayed():
             self.display_database()
         else:
             self.pa.update_database()
         self.pa.restart()
 
+    def delete(self):
+        ## DELETE A USER
+        #- This will allow you to delete an existing user
+        #- Insert a valid user ID number to delete the user
+        # get user id to edit
+        user_id = self.pa.input("Select user ID to delete")
+        self.cur.execute("SELECT * FROM users WHERE user_id = '"+user_id+"'")
+        fetched_values = self.cur.fetchall()
+        if len(fetched_values) == 0:
+            self.pa.error("User ID is not in the database!")
+        else:
+            name = fetched_values[0][1]
+            if self.pa.question("Are you sure you want to delete user: ID "+str(user_id)+" "+name):
+                self.cur.execute("DELETE FROM users WHERE user_id = '"+user_id+"'")
+                self.con.commit()
+                self.pa.print("User ID "+user_id+" - was deleted")
+            else:
+                self.pa.error("User ID "+user_id+" - was NOT deleted")
+
+        if not self.pa.database_is_displayed():
+            self.display_database()
+        else:
+            self.pa.update_database()
+        self.pa.restart()
+    
     def edit(self):
         ## EDIT A USER
         #- This will allow you to edit an existing user by filling a form
@@ -134,31 +205,6 @@ class main:
             self.pa.update_database()
         self.pa.restart()
 
-    def delete(self):
-        ## DELETE A USER
-        #- This will allow you to delete an existing user
-        #- Insert a valid user ID number to delete the user
-        # get user id to edit
-        user_id = self.pa.input("Select user ID to delete")
-        self.cur.execute("SELECT * FROM users WHERE user_id = '"+user_id+"'")
-        fetched_values = self.cur.fetchall()
-        if len(fetched_values) == 0:
-            self.pa.error("User ID is not in the database!")
-        else:
-            name = fetched_values[0][1]
-            if self.pa.question("Are you sure you want to delete user: ID "+str(user_id)+" "+name):
-                self.cur.execute("DELETE FROM users WHERE user_id = '"+user_id+"'")
-                self.con.commit()
-                self.pa.print("User ID "+user_id+" - was deleted")
-            else:
-                self.pa.error("User ID "+user_id+" - was NOT deleted")
-
-        if not self.pa.database_is_displayed():
-            self.display_database()
-        else:
-            self.pa.update_database()
-        self.pa.restart()
-    
     def Export(self):
         ## EXPORT
         #- This function allowes you to save your current database as a csv file
