@@ -1,0 +1,89 @@
+
+    def Export(self):
+        ## EXPORT
+        #- This function allowes you to save your current database as a csv file
+        # chemicals (part_number VARCHAR(50), desc VARCHAR(100), sc VARCHAR(10), shortname VARCHAR(20), fridge VARCHAR(1), msds VARCHAR(50))")
+        # chemical_lots (lot_number VARCHAR(50), part_number VARCHAR(50), exp VARCHAR(10))")
+        
+        self.cur.execute("SELECT * FROM chemicals")
+        fetched_values = self.cur.fetchall()
+        if len(fetched_values) > 0:
+            self.pa.print("Saving chemicals.csv")
+            content = "PART NUMBER,DESCRIPTION,STORAGE CONDITIONS,SHORT NAME,FRIDGE,MSDS\n"
+            for row in fetched_values:
+                for col in row:
+                    content += col+","
+                content = content[:-1]
+                content += "\n"
+            initialdir = ""
+            possibleTypes = [("CSV File", "*.csv")]
+            self.pa.save_file(content, initialdir, possibleTypes)
+        
+        self.cur.execute("SELECT * FROM chemical_lots")
+        fetched_values = self.cur.fetchall()
+        if len(fetched_values) > 0:
+            self.pa.print("Saving chemical lots.csv")
+            content = "LOT NUMBER,PART NUMBER,EXPIRATION DATE\n"
+            for row in fetched_values:
+                for col in row:
+                    content += col+","
+                content = content[:-1]
+                content += "\n"
+            initialdir = ""
+            possibleTypes = [("CSV File", "*.csv")]
+            self.pa.save_file(content, initialdir, possibleTypes) 
+
+        self.pa.restart()
+
+    def Import(self):
+        ## IMPORT
+        #- This function allowes you to load users to your database from a csv file
+        #- Warning! All current users will be deleted
+
+        # create a dict to test data before inserting it
+        new_data = {}
+        stop = False
+        if self.pa.question("Warning! If this process is completed, All current lots and part numbers will be deleted. Would you like to continue?"):
+            # load part numbers
+            self.pa.print("Load part numbers")
+            possibleTypes = [("CSV File", "*.csv")]
+            initialdir = ""
+            filename = self.pa.load_file(initialdir, possibleTypes)
+            if not filename is None:
+                csv_content = self.pa.read_csv(filename)
+                # check headers
+                i = 0
+                for h in ("PART NUMBER","DESCRIPTION","STORAGE CONDITIONS","SHORT NAME","FRIDGE","MSDS"):
+                    if csv_content[i] != h:
+                        self.pa.error("Error! Invalid csv file. Missing header: "+h+" The correct format should be: PART NUMBER,DESCRIPTION,STORAGE CONDITIONS,SHORT NAME,FRIDGE,MSDS")
+                        stop = True
+                    i += 1
+                # go over each line to make sure this data is accurate
+                if not stop:
+                    for line in csv_content[1:]:
+                        if len(line) < 6 or len(line) > 6:
+                            self.pa.error("Error in csv file: "+filename+" in line "+line+". Incorrectly formatted. Too many or not enough columns")
+                            stop = True
+                        else:
+                            
+                
+                #self.cur.execute("DELETE FROM chemicals")
+                #for line in csv_content[1:]:
+                #    self.cur.execute("INSERT INTO chemicals (part_number, desc, sc, shortname, fridge, msds) VALUES ('"+line[0]+"','"+line[1]+"','"+line[2]+"','"+line[3]+"','"+line[4]+"','"+line[5]+"')")
+                #self.con.commit()
+            else:
+                self.pa.error("Error! Invalid file loaded")
+                stop = True
+        
+        # commit database changes
+        if not stop:
+            pass
+        else:
+            self.pa.error("Import aborted")
+        
+        # update database display
+        if not self.pa.database_is_displayed():
+            self.display_database()
+        else:
+            self.pa.update_database()
+        self.pa.restart()

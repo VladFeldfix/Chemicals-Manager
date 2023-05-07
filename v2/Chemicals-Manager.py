@@ -1,12 +1,11 @@
 # GENERAL INFORMATION
-## This is the place where general information is written
-## Every new line will be numbered as a new line
-## The general information section describes the general pupose of the application
+## Chemical Manager is a database management application designed to ADD, EDIT, DELETE, and COUNT STOCK for the chemical fridge and chemical closet.
+## The application will allow you to manage the database, print yellow labels and stock reports
 
 # HOW TO USE
 ## Download the application
 ## Set all the settings according to PART V
-## Run App_Name.exe file
+## Run Chemicals-Manager.exe file
 
 from PersonalAssistant import *
 from PersonalAssistant import FIELD
@@ -36,8 +35,6 @@ class main:
         self.pa.main_menu["PRINT YELLOW LABEL"] = self.add
         self.pa.main_menu["EDIT"] = self.edit
         self.pa.main_menu["DELETE"] = self.delete
-        self.pa.main_menu["IMPORT"] = self.Import
-        self.pa.main_menu["EXPORT"] = self.Export
         self.pa.main_menu["STOCK COUNT"] = self.stock
         self.pa.display_menu()
 
@@ -50,49 +47,52 @@ class main:
     def add(self):
         ## PRINT YELLOW LABEL
         #- This will allow you to add a new LOT NUMBER to the database by filling a form
-        #- At the end of the form press Y to submit the form and the new user will be added to the database
+        #- At the end of the form press Y to submit the form and the new LOT NUMBER will be added to the database
         #- When form is successfully submitted the application will open bar tender to print a yellow label
         
         # get lot:
-        lot_number = self.pa.input("Insert LOT NUMBER")
+        lot_number = self.pa.input("Insert LOT NUMBER").upper() or "EMPTY LOT"
         self.cur.execute("SELECT * FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
         fetched_values = self.cur.fetchall()
         print_yellow_lbl = False
+        add_lot = False
         if len(fetched_values) == 0:
-            add_lot = False
-            # see if part number exists
-            part_number = self.pa.input("Insert PART NUMBER")
-            self.cur.execute("SELECT * FROM chemicals WHERE part_number = '"+part_number+"'")
-            if len(fetched_values) == 0:
-                # add a new part number
-                if self.pa.question("PART NUMBER: "+part_number+" is not in the database, would you like to add it?"):
-                    # create form add chemical
-                    fields = {}
-                    fields["PART NUMBER"] = FIELD("PART NUMBER", TEXT, part_number)
-                    fields["PART NUMBER"].disabled = True
-                    fields["DESCRIPTION"] = FIELD("DESCRIPTION", TEXT, "No Description")
-                    fields["STORAGE CONDITIONS"] = FIELD("STORAGE CONDITIONS", TEXT, "Room Temp")
-                    fields["SHORT NAME"] = FIELD("SHORT NAME", TEXT, "N/A")
-                    fields["FRIDGE"] = FIELD("FRIDGE", CHOOSE, "N")
-                    fields["FRIDGE"].options = ("Y", "N")
-                    fields["MSDS"] = FIELD("MSDS", TEXT, "N/A")
+            self.pa.error("LOT NUMBER is not in the database")
+            if self.pa.question("Would you like to add a new LOT NUMBER?"):
+                # see if part number exists
+                part_number = self.pa.input("Insert PART NUMBER").upper() or "EMPTY PART NUMBER"
+                self.cur.execute("SELECT * FROM chemicals WHERE part_number = '"+part_number+"'")
+                fetched_values = self.cur.fetchall()
+                if len(fetched_values) == 0:
+                    # add a new part number
+                    if self.pa.question("PART NUMBER: "+part_number+" is not in the database, would you like to add it?"):
+                        # create form add chemical
+                        fields = {}
+                        fields["PART NUMBER"] = FIELD("PART NUMBER", TEXT, part_number)
+                        fields["PART NUMBER"].disabled = True
+                        fields["DESCRIPTION"] = FIELD("DESCRIPTION", TEXT, "No Description")
+                        fields["STORAGE CONDITIONS"] = FIELD("STORAGE CONDITIONS", TEXT, "Room Temp")
+                        fields["SHORT NAME"] = FIELD("SHORT NAME", TEXT, "N/A")
+                        fields["FRIDGE"] = FIELD("FRIDGE", CHOOSE, "N")
+                        fields["FRIDGE"].options = ("Y", "N")
+                        fields["MSDS"] = FIELD("MSDS", TEXT, "N/A")
 
-                    # submit form
-                    submit = self.pa.form(fields)
+                        # submit form
+                        submit = self.pa.form(fields)
 
-                    # proccess given information
-                    if submit:
-                        self.cur.execute("INSERT INTO chemicals (part_number, desc, sc, shortname, fridge, msds) VALUES ('"+str(submit["PART NUMBER"])+"','"+str(submit["DESCRIPTION"])+"','"+str(submit["STORAGE CONDITIONS"])+"','"+str(submit["SHORT NAME"])+"','"+str(submit["FRIDGE"])+"','"+str(submit["MSDS"])+"')")
-                        self.con.commit()
-                        self.pa.print("New PART NUMBER added successfully!")
-                        add_lot = True
+                        # proccess given information
+                        if submit:
+                            self.cur.execute("INSERT INTO chemicals (part_number, desc, sc, shortname, fridge, msds) VALUES ('"+str(submit["PART NUMBER"])+"','"+str(submit["DESCRIPTION"])+"','"+str(submit["STORAGE CONDITIONS"])+"','"+str(submit["SHORT NAME"])+"','"+str(submit["FRIDGE"])+"','"+str(submit["MSDS"])+"')")
+                            self.con.commit()
+                            self.pa.print("New PART NUMBER added successfully!")
+                            add_lot = True
+                        else:
+                            self.pa.error("PART NUMBER adding aborted!")
                     else:
                         self.pa.error("PART NUMBER adding aborted!")
                 else:
-                    self.pa.error("PART NUMBER adding aborted!")
-            else:
-                add_lot = True
-            
+                    add_lot = True
+
             if add_lot:
                 # create form add lot
                 fields = {}
@@ -120,11 +120,35 @@ class main:
         
         # print yellow lbl
         if print_yellow_lbl:
+            csv = self.pa.get_setting("Yellow Label CSV")
             path = self.pa.get_setting("Yellow Label filename")
-            if os.path.isfile(path):
+            if os.path.isfile(path) and os.path.isfile(csv):
+                file = open(csv, 'w')
+                file.write("PART NUMBER,LOT,STORAGE CONDITIONS,EXPIRATION DATE,SHORT NAME\n")
+                self.cur.execute("SELECT * FROM dbview WHERE lot_number = '"+lot_number+"'")
+                fetched_values = self.cur.fetchall()
+                if len(fetched_values) == 0:
+                    self.pa.fatal_error("Unexpected error!")
+                else:
+                    # 0 chemicals.part_number
+                    # 1 chemicals.desc
+                    # 2 chemical_lots.exp
+                    # 3 chemical_lots.lot_number
+                    # 4 chemicals.sc
+                    # 5 chemicals.msds
+                    # 6 chemicals.fridge
+                    # 7 chemicals.shortname
+                    data = fetched_values[0]
+                    part_number = data[0]
+                    lot_number = data[3]
+                    sc = data[4]
+                    exp = data[2]
+                    short_name = data[7]
+                    file.write(part_number+","+lot_number+","+sc+","+exp+","+short_name)
+                file.close()
                 os.popen(path)
             else:
-                self.pa.fatal_error("Missing file: "+path)
+                self.pa.fatal_error("Missing files: "+path+" or "+csv)
 
         # resptart
         if not self.pa.database_is_displayed():
@@ -132,25 +156,46 @@ class main:
         else:
             self.pa.update_database()
         self.pa.restart()
-
-    def delete(self):
-        ## DELETE A USER
-        #- This will allow you to delete an existing user
-        #- Insert a valid user ID number to delete the user
+    
+    def edit(self):
+        ## EDIT
+        #- This will allow you to edit an existing PART NUMBER by filling a form
+        #- At the end of the form press Y to submit the form and the user information will be edited
         # get user id to edit
-        user_id = self.pa.input("Select user ID to delete")
-        self.cur.execute("SELECT * FROM users WHERE user_id = '"+user_id+"'")
+        part_number = self.pa.input("Insert PART NUMBER to edit").upper()
+        self.cur.execute("SELECT * FROM chemicals WHERE part_number = '"+part_number+"'")
         fetched_values = self.cur.fetchall()
         if len(fetched_values) == 0:
-            self.pa.error("User ID is not in the database!")
+            self.pa.error("PART NUMBER is not in the database!")
         else:
-            name = fetched_values[0][1]
-            if self.pa.question("Are you sure you want to delete user: ID "+str(user_id)+" "+name):
-                self.cur.execute("DELETE FROM users WHERE user_id = '"+user_id+"'")
+            # get default values
+            # part_number VARCHAR(50), desc VARCHAR(100), sc VARCHAR(10), shortname VARCHAR(20), fridge VARCHAR(1), msds VARCHAR(50)
+            data = fetched_values[0]
+            part_number = data[0]
+            desc = data[1]
+            sc = data[2]
+            shortname = data[3]
+            fridge = data[4]
+            msds = data[5]
+
+            # setup a form to fill
+            fields = {}
+            fields["PART NUMBER"] = FIELD("PART NUMBER", TEXT, part_number)
+            fields["PART NUMBER"].disabled = True
+            fields["DESCRIPTION"] = FIELD("DESCRIPTION", TEXT, desc)
+            fields["STORAGE CONDITIONS"] = FIELD("STORAGE CONDITIONS", TEXT, sc)
+            fields["SHORT NAME"] = FIELD("SHORT NAME", TEXT, shortname)
+            fields["FRIDGE"] = FIELD("FRIDGE", CHOOSE, fridge)
+            fields["FRIDGE"].options = ("Y", "N")
+            fields["MSDS"] = FIELD("MSDS", TEXT, msds)
+            form = self.pa.form(fields)
+
+            if form:
+                self.cur.execute("UPDATE chemicals SET msds = '"+str(form["MSDS"])+"', desc = '"+str(form["DESCRIPTION"])+"', sc = '"+str(form["STORAGE CONDITIONS"])+"', shortname = '"+str(form["SHORT NAME"])+"', fridge = '"+str(form["FRIDGE"])+"' WHERE part_number = '"+str(form["PART NUMBER"])+"'")
                 self.con.commit()
-                self.pa.print("User ID "+user_id+" - was deleted")
+                self.pa.print("PART NUMBER "+str(form["PART NUMBER"])+" - Changes have been saved")
             else:
-                self.pa.error("User ID "+user_id+" - was NOT deleted")
+                self.pa.error("PART NUMBER "+part_number+" - Changes have NOT been saved")
 
         if not self.pa.database_is_displayed():
             self.display_database()
@@ -158,86 +203,41 @@ class main:
             self.pa.update_database()
         self.pa.restart()
     
-    def edit(self):
-        ## EDIT A USER
-        #- This will allow you to edit an existing user by filling a form
-        #- At the end of the form press Y to submit the form and the user information will be edited
+    def delete(self):
+        ## DELETE
+        #- This will allow you to delete an existing LOT or PART NUMBER
+        #- Insert a valid LOT or PART NUMBER to delete
         # get user id to edit
-        user_id = self.pa.input("Select user ID to edit")
-        self.cur.execute("SELECT * FROM users WHERE user_id = '"+user_id+"'")
-        fetched_values = self.cur.fetchall()
-        if len(fetched_values) == 0:
-            self.pa.error("User ID is not in the database!")
-        else:
-            # get default values
-            data = fetched_values[0]
-            user_id = data[0]
-            user_name = data[1]
-            phone = data[2]
-            sex = data[3]
-            birth_date = data[4]
-            photo = data[5]
-
-            # setup a form to fill
-            fields = {}
-            fields["user_id"] = FIELD("UserID", NUMBER, user_id)
-            fields["user_id"].disabled = True
-            fields["user_name"] = FIELD("Name", TEXT, user_name)
-            fields["phone"] = FIELD("Phone", TEXT, phone)
-            sexes = ("M", "F", "Not Specified")
-            fields["sex"] = FIELD("Sex", CHOOSE, sex)
-            fields["sex"].options = sexes
-            fields["birth_date"] = FIELD("Birth Date", DATE, birth_date)
-            fields["photo"] = FIELD("Photo", FILE, photo)
-            fields["photo"].filetypes = [("Images","*.img"), ("PNG","*.png"), ("Bitmap",".bmp"), ("JPEG", ".jpeg"), ("All Files","*.*")]
-            form = self.pa.form(fields)
-
-            if form:
-                self.cur.execute("UPDATE users SET user_name = '"+str(form["user_name"])+"', phone = '"+str(form["phone"])+"', sex = '"+str(form["sex"])+"', birth_date = '"+str(form["birth_date"])+"', photo = '"+str(form["photo"])+"' WHERE user_id = '"+str(form["user_id"])+"'")
-                self.con.commit()
-                self.pa.print("User ID "+str(form["user_id"])+" - Changes have been saved")
+        ans = self.pa.choose("What would you like to delete?", ("LOT NUMBER", "PART NUMBER"), "")
+        if ans == "PART NUMBER":
+            part_number = self.pa.input("Insert PART NUMBER to delete").upper()
+            self.cur.execute("SELECT * FROM chemicals WHERE part_number = '"+part_number+"'")
+            fetched_values = self.cur.fetchall()
+            if len(fetched_values) == 0:
+                self.pa.error("PART NUMBER is not in the database!")
             else:
-                self.pa.error("User ID "+user_id+" - Changes have NOT been saved")
+                if self.pa.question("Are you sure you want to delete PART NUMBER: "+part_number+" and all open lots for this part number?"):
+                    self.cur.execute("DELETE FROM chemicals WHERE part_number = '"+part_number+"'")
+                    self.cur.execute("DELETE FROM chemical_lots WHERE part_number = '"+part_number+"'")
+                    self.con.commit()
+                    self.pa.print("PART NUMBER "+part_number+" and all open lots [if any exited] for this part number - were deleted")
+                else:
+                    self.pa.error("PART NUMBER "+part_number+" - was NOT deleted")
+        
+        elif ans == "LOT NUMBER":
+            lot_number = self.pa.input("Insert LOT NUMBER to delete").upper()
+            self.cur.execute("SELECT * FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
+            fetched_values = self.cur.fetchall()
+            if len(fetched_values) == 0:
+                self.pa.error("LOT NUMBER is not in the database!")
+            else:
+                if self.pa.question("Are you sure you want to delete LOT NUMBER: "+lot_number):
+                    self.cur.execute("DELETE FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
+                    self.con.commit()
+                    self.pa.print("LOT NUMBER "+lot_number+" - was deleted")
+                else:
+                    self.pa.error("LOT NUMBER "+lot_number+" - was NOT deleted")
 
-        if not self.pa.database_is_displayed():
-            self.display_database()
-        else:
-            self.pa.update_database()
-        self.pa.restart()
-
-    def Export(self):
-        ## EXPORT
-        #- This function allowes you to save your current database as a csv file
-        self.cur.execute("SELECT * FROM users")
-        fetched_values = self.cur.fetchall()
-        if len(fetched_values) > 0:
-            content = "User Id,Name,Phone,Sex,Birth date,Photo\n"
-            for row in fetched_values:
-                for col in row:
-                    content += col+","
-                content = content[:-1]
-                content += "\n"
-            initialdir = ""
-            possibleTypes = [("CSV File", "*.csv")]
-            self.pa.save_file(content, initialdir, possibleTypes)
-        else:
-            self.pa.error("Error! Cannot save an empty database")
-        self.pa.restart()
-
-    def Import(self):
-        ## IMPORT
-        #- This function allowes you to load users to your database from a csv file
-        #- Warning! All current users will be deleted
-        if self.pa.question("Warning! All current users will be deleted. Would you like to continue?"):
-            possibleTypes = [("CSV File", "*.csv")]
-            initialdir = ""
-            filename = self.pa.load_file(initialdir, possibleTypes)
-            if not filename is None:
-                csv_content = self.pa.read_csv(filename)
-                self.cur.execute("DELETE FROM users")
-                for line in csv_content[1:]:
-                    self.cur.execute("INSERT INTO users (user_id, user_name, phone, sex, birth_date, photo) VALUES ('"+str(line[0])+"','"+line[1]+"','"+str(line[2])+"','"+line[3]+"','"+line[4]+"','"+line[5]+"')")
-                self.con.commit()
         if not self.pa.database_is_displayed():
             self.display_database()
         else:
@@ -245,9 +245,51 @@ class main:
         self.pa.restart()
 
     def stock(self):
-        ## LOAD FOLDER
-        #- Loads a folder location
-        pass
+        ## STOCK-COUNT
+        #- Will allow you to count the current stock
+        stock_list = []
+        current_part_number = ""
+        self.pa.print("Scan all yellow labels one by one. Insert the word END to finish the stock-count")
+        lot_number = ""
+        while lot_number != "END":
+            lot_number = self.pa.input("Insert LOT NUMBER or the word END to finish the stock-count").upper()
+            if lot_number != "END":
+                self.cur.execute("SELECT * FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
+                fetched_values = self.cur.fetchall()
+                if len(fetched_values) == 0:
+                    self.pa.error("LOT NUMBER: "+lot_number+" is not in the database")
+                else:
+                    dont_add = False
+                    data = fetched_values[0]
+                    lot_number = data[0]
+                    part_number = data[1]
+                    exp = data[2]
+                    self.pa.print("LOT NUMBER: "+lot_number+", PART NUMBER: "+part_number+", EXPIRATION DATE: "+exp)
+                    if current_part_number != part_number:
+                        current_part_number = part_number
+                        self.pa.notice("Notice! This part number is not same same as the previous one")
+                    dt = exp
+                    dt = dt.split("-")
+                    y = int(dt[0])
+                    m = int(dt[1])
+                    d = int(dt[2])
+                    if datetime.datetime(y,m,d) < datetime.datetime.now()+datetime.timedelta(days=5):
+                        self.pa.error("Notice! this lot is expired!")
+                        if self.pa.question("Would you like to delete it from the database?"):
+                            self.cur.execute("DELETE FROM chemical_lots WHERE lot_number = '"+lot_number+"'")
+                            self.con.commit()
+                            self.pa.print("LOT NUMBER "+lot_number+" - was deleted")
+                            dont_add = True
+                        else:
+                            self.pa.error("LOT NUMBER "+lot_number+" - was NOT deleted")
+                    if not dont_add:
+                        stock_list.append(lot_number)
+            else:
+                self.pa.print("Stock-Count complete!")
+                file = open("Stockcount.txt", "w")
+                for line in stock_list:
+                    file.write(line+"\n")
+                file.close()
         self.pa.restart()
 
 main()
@@ -255,17 +297,10 @@ main()
 # SCRIPT FUNCTIONS
 # SETTINGS
 # Database location --> The location of the database. For example: database.db
+# Yellow Label filename --> yellow lbl.btw
+# Yellow Label CSV --> yellow lbl.csv
 
 # RELATED FILES
-## chemicals.csv - This is the file the app generates when clicking on EXPORT this file contains the following columns:
-#- PART NUMBER
-#- DESCRIPTION
-#- STORAGE CONDITIONS
-#- SHORT NAME
-#- FRIDGE
-#- MSDS
-
-## chemical_lots.csv - This is the file the app generates when clicking on EXPORT this file contains the following columns:
-#- LOT NUMBER
-#- PART NUMBER
-#- EXPIRATION DATE
+## Yellow Label.btw a bartender file
+## CSV file for the Yellow label to print from
+## Database file to keep all the relevant data
