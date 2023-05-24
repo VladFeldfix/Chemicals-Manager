@@ -1,5 +1,4 @@
 from SmartConsole import *
-from tkinter import *
 
 class main:
     def __init__(self):
@@ -19,6 +18,24 @@ class main:
         self.Chemicals = self.sc.csv_to_dict(self.loc_chemicals+"/Chemicals.csv", ("PART NUMBER","DESCRIPTION","STORAGE CONDITIONS","NICKNAME","FRIDGE","MSDS"))
         self.Lots = self.sc.csv_to_dict(self.loc_chemicals+"/Lots.csv", ("LOT NUMBER","PART NUMBER","EXPIRATION DATE"))
         self.Stock = self.sc.csv_to_dict(self.loc_chemicals+"/Stockcount.txt", ("LOT", "QTY"))
+
+        # give notices
+        notice = False
+        i = 0
+        for lot, pn_exp in self.Lots.items():
+            if i > 0:
+                LOT_NUMBER = lot
+                PART_NUMBER = pn_exp[0]
+                EXPIRATION_DATE = pn_exp[1]
+                if not PART_NUMBER in self.Chemicals:
+                    self.sc.notice("For LOT NUMBER "+LOT_NUMBER+": PART NUMBER: "+PART_NUMBER+" Is not in the database")
+                    notice = True
+                if not LOT_NUMBER in self.Stock:
+                    self.sc.notice("LOT NUMBER "+LOT_NUMBER+": Is not in stock")
+                    notice = True
+            i += 1
+        if notice:
+            self.sc.input("Press ENTER to continue")
         
         # related_files
         self.file_yellow_lbl = self.loc_chemicals+"/LBL Chemical Closet AR00162 Yellow Label.btw"
@@ -151,14 +168,60 @@ class main:
                 closet_report.append(report_string)
         
         # make html
-        self.make_html(self.loc_chemicals+"/Chemical-Fridge.html", fridge_report)
-        self.make_html(self.loc_chemicals+"/Chemical-Closet.html", closet_report)
+        self.make_html(self.loc_chemicals+"/Chemical-Fridge.html", fridge_report, "תכולת מקרר חומרים")
+        self.make_html(self.loc_chemicals+"/Chemical-Closet.html", closet_report, "תכולת ארון חומרים")
 
         # restart
         self.sc.restart()
     
-    def make_html(self, location, data):
-        file = open(location, 'w')
+    def make_html(self, location, data, header):
+        file = open(location, 'w', encoding = "utf-8")
+        file.write("<html>\n")
+        file.write("<head>\n")
+        file.write("<style>\n")
+        file.write("body{\n")
+        file.write("    font-family:Arial;\n")
+        file.write("}\n")
+        file.write("table{\n")
+        file.write("    border:black solid 1px;\n")
+        file.write("    text-align:left;\n")
+        file.write("    border-collapse:collapse;\n")
+        file.write("    margin:auto;\n")
+        file.write("}\n")
+        file.write("table td{\n")
+        file.write("    border:black solid 1px;\n")
+        file.write("    padding:5;\n")
+        file.write("    font-size:10pt;\n")
+        file.write("}\n")
+        file.write("table th{\n")
+        file.write("    border:black solid 1px;\n")
+        file.write("    padding:5;\n")
+        file.write("    background-color:black;\n")
+        file.write("    color:white;\n")
+        file.write("}\n")
+        file.write("h1{\n")
+        file.write("    text-align:center;\n")
+        file.write("}\n")
+        file.write(".white{\n")
+        file.write("    background-color:#ffffff;\n")
+        file.write("}\n")
+        file.write(".yellow{\n")
+        file.write("    background-color:#e6d063;\n")
+        file.write("}\n")
+        file.write(".red{\n")
+        file.write("    background-color:#d43737;\n")
+        file.write("}\n")
+        file.write(".black{\n")
+        file.write("    background-color:#4a4a4a;\n")
+        file.write("}\n")
+        file.write("</style>\n")
+        file.write("</head>\n")
+        file.write("<body>\n")
+        file.write("<h1>"+header+"</h1>\n")
+        file.write("<table>\n")
+        file.write("<tr>\n")
+        file.write("<th>PN</th><th>DESCRIPTION</th><th>SC</th><th>MSDS</th><th>LOT</th><th>EXP</th><th>QTY</th>\n")
+        file.write("</tr>\n")
         for line in data:
             PART_NUMBER = line[0]
             DESCRIPTION = line[1]
@@ -167,8 +230,25 @@ class main:
             LOT_NUMBER = line[4]
             EXPIRATION_DATE = line[5]
             QTY = line[6]
-            print(PART_NUMBER,DESCRIPTION,STORAGE_CONDITIONS,MSDS,LOT_NUMBER,EXPIRATION_DATE,QTY)
-            file.write(PART_NUMBER+" "+DESCRIPTION+" "+STORAGE_CONDITIONS+" "+MSDS+" "+LOT_NUMBER+" "+EXPIRATION_DATE+" "+QTY)
+            line_color = "white"
+            if self.sc.test_date(EXPIRATION_DATE):
+                compare_dates = self.sc.compare_dates(EXPIRATION_DATE, self.sc.today())
+                if compare_dates < 6 and compare_dates > 0:
+                    line_color = "yellow"
+                if compare_dates <= 0:
+                    line_color = "red"
+            else:
+                line_color = "black"
+            file.write("<tr class="+line_color+">\n")
+            file.write("<td>"+PART_NUMBER+"</td><td>"+DESCRIPTION+"</td><td>"+STORAGE_CONDITIONS+"</td><td>"+MSDS+"</td><td>"+LOT_NUMBER+"</td><td>"+EXPIRATION_DATE+"</td><td>"+QTY+"</td>\n")
+            file.write("</tr>\n")
+        file.write("</table>\n")
+        file.write("</body>\n")
+        file.write("</footer>\n")
+        file.write("<br><br><br><p style='direction:rtl;'>בודק:___________</p>\n")
+        file.write("<p style='direction:rtl;'>תאריך:"+self.sc.today()+"</p>\n")
+        file.write("</footer>\n")
+        file.write("</html>\n")
         file.close()
         os.popen(location)
 main()
