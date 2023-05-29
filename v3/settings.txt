@@ -1,1 +1,2 @@
-Chemicals location > C:\Users\mig_rprod\Desktop\New Tools Testing\Chemical Closet
+/Chemicals location > C:\Users\mig_rprod\Desktop\New Tools Testing\Chemical Closet
+Chemicals location > D:\Users\Vlad\Desktop\New Tools Testing/Chemical Closet
