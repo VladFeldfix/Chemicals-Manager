@@ -70,14 +70,30 @@ class main:
 
     def new_part_number(self):
         # get pn
+        part_number = self.sc.input("Insert new PART NUMBER")
+        
         # make sure pn is not new
-        # get description
-        # storage conditions
-        # get short name
-        # get msds number
-        # get fridge y/n
+        if part_number in self.CHEMICALS:
+            self.sc.error("PART NUMBER is not new")
+            self.sc.restart()
+            return
+        else:
+            # get description
+            description = self.sc.input("Insert DESCRIPTION")
+            # storage conditions
+            sc = self.sc.input("Insert STORAGE CONDITIONS")
+            # get short name
+            shortname = self.sc.input("Insert SHORTNAME")
+            # get fridge y/n
+            fridge = self.sc.question("Needs REFRIGERATION?")
+            # get msds number
+            msds = self.sc.input("Insert MSDS number")
+            # update database "PART NUMBER","DESCRIPTION","STORAGE CONDITIONS","NICKNAME","FRIDGE","MSDS"
+            self.CHEMICALS[part_number] = [description, sc, shortname, fridge, msds]
+            self.sc.save_database(self.path_chemicals_csv ,self.CHEMICALS)
+            self.sc.restart()
         # restart
-        pass
+        self.sc.restart()
 
     def new_yellow_label(self):
         # get lot number
