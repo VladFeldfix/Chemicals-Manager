@@ -4,10 +4,77 @@ import datetime
 from datetime import date as date_n
 import re
 class SmartConsole:
+    # CONSTRUCTOR
     def __init__(self, name, version):
         self.title = name+" v"+version
         self.main_menu = {}
+        self.__load_settings()
 
+    # FLOW
+    def start(self):
+        # clear console
+        os.system('cls')
+
+        # display title
+        self.print("---"+"-"*len(self.title)+"---")
+        self.print("-- "+self.title+" --")
+        self.print("---"+"-"*len(self.title)+"---")
+
+        # display main menu
+        self.main_menu["SETTINGS"] = self.open_settings
+        self.main_menu["HELP"] = self.help
+        self.main_menu["EXIT"] = self.exit
+        self.print("MAIN MENU:")
+        item = 0
+        options = {}
+        for key, value in self.main_menu.items():
+            item += 1
+            self.print(str(item)+". "+key)
+            options[str(item)] = value
+        
+        # get input
+        ans = self.input("Insert your choice")
+        if ans in options:
+            options[ans]()
+        else:
+            self.error("Invalid selection")
+            self.restart()
+            return
+    
+    def restart(self):
+        self.input("Press ENTER to restart")
+        self.start()
+    
+    def exit(self):
+        self.input("Press ENTER to exit")
+        os._exit(1)
+        sys.exit()
+    
+    # INPUT
+    def input(self, text):
+        return input(text+" >")
+    
+    def question(self, text):
+        ans = self.input(text+" [Y/N]").upper()
+        if not ans in ("Y", "N"):
+            self.error("Invalid answer!")
+            self.question(text)
+        else:
+            return ans == "Y"
+
+    # OUTPUT
+    def print(self, text):
+        print(text)
+
+    def error(self, text):
+        self.print("ERROR "+text)
+    
+    def fatal_error(self, text):
+        self.print("ERROR! "+text)
+        self.exit()
+    
+    # SETTINGS
+    def __load_settings(self):
         # load settings.txt
         if not os.path.isfile("settings.txt"):
             self.fatal_error("Missing file settings.txt")
@@ -22,71 +89,24 @@ class SmartConsole:
                     line = line.split(">")
                     if len(line) == 2:
                         self.__loaded_settings[line[0].strip()] = line[1].strip()
-        
-    def start(self):
-        # clear console
-        os.system('cls')
-
-        # display title
-        print("---"+"-"*len(self.title)+"---")
-        print("-- "+self.title+" --")
-        print("---"+"-"*len(self.title)+"---")
-
-        # display main menu
-        self.main_menu["SETTINGS"] = self.open_settings
-        self.main_menu["HELP"] = self.help
-        self.main_menu["EXIT"] = self.exit
-        print("MAIN MENU:")
-        item = 0
-        options = {}
-        for key, value in self.main_menu.items():
-            item += 1
-            print(str(item)+". "+key)
-            options[str(item)] = value
-        
-        # get input
-        ans = self.input("Insert your choice")
-        if ans in options:
-            options[ans]()
-        else:
-            self.error("Invalid selection")
-            self.restart()
-            return
-
-    def restart(self):
-        self.input("Press ENTER to restart")
-        self.start()
     
-    def error(self, text):
-        print("ERROR "+text)
+    def open_settings(self):
+        os.popen("settings.txt")
 
-    def test_path(self, path):
-        if not os.path.isdir(path) and not os.path.isfile(path):
-            self.fatal_error("Missing path: "+path)
-    
     def get_setting(self, var):
         if var in self.__loaded_settings:
             return self.__loaded_settings[var]
         else:
             self.fatal_error("Missing setting: "+var)
 
-    def fatal_error(self, text):
-        print("ERROR! "+text)
-        self.exit()
-    
-    def input(self, text):
-        return input(text+" >")
-    
-    def exit(self):
-        self.input("Press ENTER to exit")
-        os._exit(1)
-        sys.exit()
-
-    def open_settings(self):
-        os.popen("settings.txt")
-
+    # HELP
     def help(self):
         os.popen("help.pdf")
+    
+    # FILE HANDLER
+    def test_path(self, path):
+        if not os.path.isdir(path) and not os.path.isfile(path):
+            self.fatal_error("Missing path: "+path)
 
     # DATABASES
     def save_database(self, path, data):
@@ -113,7 +133,7 @@ class SmartConsole:
                 line = line.replace("\n", "")
                 line = line.split(",")
                 if len(line) != len(headers):
-                    self.fatal_error("in file: "+path+"\nIn line #"+str(ln)+"\nIncorrect number of values")
+                    self.fatal_error("in file: "+path+"\nIn line #"+str(ln)+"\nIncorrect number of values\nMake the file according to the following format:\n"+str(headers))
                 else:
                     if ln == 1:
                         i = 0
@@ -121,16 +141,15 @@ class SmartConsole:
                             if h != headers[i]:
                                 self.fatal_error("in file: "+path+"\nIn line #"+str(ln)+"\nInvalid header\nGiven: '"+h+"' Expected: '"+headers[i]+"'")
                             i += 1
+                    key = line[0]
+                    values = line[1:]
+                    if not key in return_value:
+                        return_value[key] = values
                     else:
-                        key = line[0]
-                        values = line[1:]
-                        if not key in return_value:
-                            return_value[key] = values
-                        else:
-                            self.fatal_error("in file: "+path+"\nIn line #"+str(ln)+"\nPrimary key: "+key+" is not unique")
+                        self.fatal_error("in file: "+path+"\nIn line #"+str(ln)+"\nPrimary key: "+key+" is not unique")
         else:
             ln += 1
-            self.fatal_error("in file: "+path+"\nIn line #"+str(ln)+"\nIncorrect number of values")
+            self.fatal_error("in file: "+path+"\nIn line #"+str(ln)+"\nFile is empty")
         return return_value
 
     # DATE
