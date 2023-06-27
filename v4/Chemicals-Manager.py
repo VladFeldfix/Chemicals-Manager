@@ -7,11 +7,11 @@ class main:
         self.sc = SmartConsole("Chemical Manager", "4.0")
 
         # set-up main memu
-        self.sc.main_menu["DO STOCK-COUNT"] = self.stockcount
-        self.sc.main_menu["PRINT NEW YELLOW LABEL"] = self.new_yellow_label
-        self.sc.main_menu["GENERATE HTML REPORTS"] = self.generate_html_report
-        self.sc.main_menu["ADD NEW PART NUMBER"] = self.new_part_number
-        self.sc.main_menu["ADD NEW LOT"] = self.new_lot
+        self.sc.add_main_menu_item("DO STOCK-COUNT", self.stockcount)
+        self.sc.add_main_menu_item("PRINT NEW YELLOW LABEL", self.new_yellow_label)
+        self.sc.add_main_menu_item("GENERATE HTML REPORTS", self.generate_html_report)
+        self.sc.add_main_menu_item("ADD NEW PART NUMBER", self.new_part_number)
+        self.sc.add_main_menu_item("ADD NEW LOT", self.new_lot)
 
         # get settings
         self.path_main = self.sc.get_setting("Chemicals folder")
@@ -227,7 +227,8 @@ class main:
                     else:
                         comment += "\nNot the same as previous"
                     selected = part_number
-                
+                tmp = "**  Not added to inventory  **"
+                Not_added_to_inventory = "*"*len(tmp)+"\n"+tmp+"\n"+"*"*len(tmp)
                 if not error:
                     if comment == "No comments":
                         comment = "Added to inventory"
@@ -235,9 +236,9 @@ class main:
                         comment += "\nAdded to inventory"
                 else:
                     if comment == "No comments":
-                        comment = "Not added to inventory"
+                        comment = Not_added_to_inventory
                     else:
-                        comment += "\nNot added to inventory"
+                        comment += "\n"+Not_added_to_inventory
                 # display data
                 self.sc.print("BOXID: "+box_id+"\nPART NUMBER: "+part_number+"\nDESCRIPTION: "+description+"\nSTORAGE CONDITIONS: "+sc+"\nFRIDGE: "+fridge+"\nMSDS: "+msds+"\nLOT NUMBER: "+lot_number+"\nEXPIRATION DATE: "+exp+"\n"+comment)
                 if not error:
