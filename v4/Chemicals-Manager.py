@@ -82,7 +82,7 @@ class main:
                 # get description
                 description = self.sc.input("Insert DESCRIPTION")
                 # storage conditions
-                sc = self.sc.input("Insert STORAGE CONDITIONS")
+                sc = self.sc.input("Insert STORAGE CONDITIONS [Or leave empty for ROOM TEMP]") or "ROOM TEMP"
                 # get short name
                 shortname = self.sc.input("Insert SHORTNAME")
                 # get fridge y/n
