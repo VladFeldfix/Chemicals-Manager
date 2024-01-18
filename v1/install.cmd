@@ -1,1 +1,0 @@
-pyinstaller -i favicon.ico --noconsole --onefile Products-Manager.py
