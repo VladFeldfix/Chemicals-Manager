@@ -1,11 +1,11 @@
 # Download SmartConsole.py from: https://github.com/VladFeldfix/Smart-Console/blob/main/SmartConsole.py
 from SmartConsole import *
-
+from termcolor import colored
 class main:
     # constructor
     def __init__(self):
         # load smart console
-        self.sc = SmartConsole("Chemical Manager", "1.0")
+        self.sc = SmartConsole("Chemical Manager", "1.1")
 
         # set-up main memu
         self.sc.add_main_menu_item("DO STOCK-COUNT", self.stockcount)
@@ -195,7 +195,7 @@ class main:
                 sc = "---"
                 fridge = "---"
                 msds = "---"
-                comment = "No comments"
+                comment = ""
                 
                 if lot_number in self.LOTS:
                     part_number = self.LOTS[lot_number][0]
@@ -214,34 +214,36 @@ class main:
                 if self.sc.test_date(exp):
                     compare_dates = self.sc.compare_dates(exp, self.sc.today())
                     if compare_dates < 6 and compare_dates > 0:
-                        comment = "About to expire"
+                        comment = colored("[!] About to expire", 'yellow')
                         error = True
                     if compare_dates <= 0:
-                        comment = "Expired"
+                        comment = colored("[!] Expired", 'red')
                         error = True
                 else:
                     error = True
                 
                 if part_number != selected:
-                    if comment == "No comments":
-                        comment = "Not the same as previous"
+                    if comment == "":
+                        comment = colored("[!] Not the same as previous",'yellow')
                     else:
-                        comment += "\nNot the same as previous"
+                        comment += colored("\n[!] Not the same as previous",'yellow')
                     selected = part_number
-                tmp = "**  Not added to inventory  **"
-                Not_added_to_inventory = "*"*len(tmp)+"\n"+tmp+"\n"+"*"*len(tmp)
+                #tmp = "***** Not added to inventory! *****"
+                #Not_added_to_inventory = "*"*len(tmp)+"\n"+tmp+"\n"+"*"*len(tmp)
+                Not_added_to_inventory = colored("[X] Not added to inventory",'red')
                 if not error:
-                    if comment == "No comments":
-                        comment = "Added to inventory"
+                    if comment == "":
+                        comment = colored("[+] Added to inventory", 'green')
                     else:
-                        comment += "\nAdded to inventory"
+                        comment += colored("\n[+] Added to inventory", 'green')
                 else:
-                    if comment == "No comments":
+                    if comment == "":
                         comment = Not_added_to_inventory
                     else:
                         comment += "\n"+Not_added_to_inventory
                 # display data
-                self.sc.print("BOXID: "+box_id+"\nPART NUMBER: "+part_number+"\nDESCRIPTION: "+description+"\nSTORAGE CONDITIONS: "+sc+"\nFRIDGE: "+fridge+"\nMSDS: "+msds+"\nLOT NUMBER: "+lot_number+"\nEXPIRATION DATE: "+exp+"\n"+comment)
+                #self.sc.print("BOXID: "+box_id+"\nPART NUMBER: "+part_number+"\nDESCRIPTION: "+description+"\nSTORAGE CONDITIONS: "+sc+"\nFRIDGE: "+fridge+"\nMSDS: "+msds+"\nLOT NUMBER: "+lot_number+"\nEXPIRATION DATE: "+exp+"\n"+comment)
+                self.sc.print("#"+box_id+" "+part_number+" "+exp+"\n"+comment)
                 if not error:
                     stockcount.append(box_id)
             else:
