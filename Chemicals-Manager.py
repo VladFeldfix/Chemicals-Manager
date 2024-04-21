@@ -62,7 +62,7 @@ class main:
                         if self.sc.question("LOT NUMBER: "+lot_number+"\nPART NUMBER: "+part_number+"\nEXPIRATION DATE: "+exp+"\nWould you like to update the database?"):
                             self.LOTS[lot_number] = [part_number, exp]
                             self.sc.save_database(self.path_lots_csv ,self.LOTS)
-                            self.sc.print("Database "+self.path_lots_csv+" Updated successfully!")
+                            self.sc.good("Database "+self.path_lots_csv+" Updated successfully!")
             else:
                 self.sc.error("LOT NUMBER is not new")
         else:
@@ -98,7 +98,7 @@ class main:
                     # update database "PART NUMBER","DESCRIPTION","STORAGE CONDITIONS","NICKNAME","FRIDGE","MSDS"
                     self.CHEMICALS[part_number] = [description, sc, shortname, fridge, msds]
                     self.sc.save_database(self.path_chemicals_csv ,self.CHEMICALS)
-                    self.sc.print("Database "+self.path_chemicals_csv+" Updated successfully!")
+                    self.sc.good("Database "+self.path_chemicals_csv+" Updated successfully!")
         else:
             self.sc.error("Invalid PART NUMBER")
 
@@ -262,10 +262,10 @@ class main:
                 else:
                     skip = False
             self.sc.save_database(self.path_inventory, self.INVENTORY)
-            self.sc.print("Stock-count was successfully updated!")
+            self.sc.good("Stock-count was successfully updated!")
         else:
             # abort
-            self.sc.print("Stock-count aborted")
+            self.sc.warning("Stock-count aborted")
         # restart
         self.sc.restart()
 
