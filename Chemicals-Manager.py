@@ -54,7 +54,7 @@ class main:
                     self.sc.error("this PART NUMBER is not in the database")
                 else:
                     # get exp date
-                    exp = self.sc.input("Insert EXPIRATION DATE")
+                    exp = self.sc.input("Insert EXPIRATION DATE [YYYY-MM-DD]")
                     if self.sc.compare_dates(exp, self.sc.today()) <= 0:
                         self.sc.error("This date invalid or expired!")
                     else:
