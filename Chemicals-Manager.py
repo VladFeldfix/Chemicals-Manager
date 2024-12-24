@@ -5,7 +5,7 @@ class main:
     # constructor
     def __init__(self):
         # load smart console
-        self.sc = SmartConsole("Chemical Manager", "5.0")
+        self.sc = SmartConsole("Chemical Manager", "5.1")
 
         # set-up main memu
         self.sc.add_main_menu_item("DO STOCK-COUNT", self.stockcount)
@@ -207,6 +207,10 @@ class main:
                     description = self.CHEMICALS[part_number][0]
                     sc = self.CHEMICALS[part_number][1]
                     fridge = self.CHEMICALS[part_number][3]
+                    if fridge == 'Y':
+                        fridge = colored(" [*] FRIDGE", 'blue')
+                    else:
+                        fridge = ""
                     msds = self.CHEMICALS[part_number][4]
                 else:
                     error = True
@@ -243,7 +247,7 @@ class main:
                         comment += "\n"+Not_added_to_inventory
                 # display data
                 #self.sc.print("BOXID: "+box_id+"\nPART NUMBER: "+part_number+"\nDESCRIPTION: "+description+"\nSTORAGE CONDITIONS: "+sc+"\nFRIDGE: "+fridge+"\nMSDS: "+msds+"\nLOT NUMBER: "+lot_number+"\nEXPIRATION DATE: "+exp+"\n"+comment)
-                self.sc.print("#"+box_id+" "+part_number+" "+exp+"\n"+comment)
+                self.sc.print("#"+box_id+" "+part_number+" "+exp+fridge+"\n"+comment)
                 if not error:
                     stockcount.append(box_id)
             else:
