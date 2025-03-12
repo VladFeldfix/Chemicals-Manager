@@ -1,4 +1,4 @@
-('C:\\Users\\mig_rprod\\Desktop\\Tools\\Chemicals-Manager\\build\\Chemicals-Manager\\PYZ-00.pyz',
+('C:\\Users\\mig_rprod\\Documents\\Tools\\Chemicals-Manager\\build\\Chemicals-Manager\\PYZ-00.pyz',
  [('subprocess', 'C:\\Python310\\lib\\subprocess.py', 'PYMODULE'),
   ('selectors', 'C:\\Python310\\lib\\selectors.py', 'PYMODULE'),
   ('contextlib', 'C:\\Python310\\lib\\contextlib.py', 'PYMODULE'),

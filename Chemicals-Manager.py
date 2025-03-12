@@ -35,7 +35,7 @@ class main:
     
     def load_databases(self):
         # load databases
-        self.CHEMICALS = self.sc.load_database(self.path_chemicals_csv, ("PART NUMBER","DESCRIPTION","STORAGE CONDITIONS","NICKNAME","FRIDGE","MSDS"))
+        self.CHEMICALS = self.sc.load_database(self.path_chemicals_csv, ("PART NUMBER","DESCRIPTION","STORAGE CONDITIONS","NICKNAME","FRIDGE","MSDS","HARDNESS TEST"))
         self.LOTS = self.sc.load_database(self.path_lots_csv, ("LOT NUMBER","PART NUMBER","EXPIRATION DATE"))
         self.INVENTORY = self.sc.load_database(self.path_inventory, ("BOXID","LOT NUMBER", "INSTOCK"))
 
@@ -92,11 +92,13 @@ class main:
                 else:
                     fridge = "N"
                 # get msds number
-                msds = self.sc.input("Insert MSDS number")
+                msds = self.sc.input("Insert MSDS number [Or leave empty for -N/A-]") or "-N/A-"
+                # get hardness testing information
+                hardness = self.sc.input("Insert hardness testing information [Or leave empty for -N/A-]") or "-N/A-"
                 self.sc.hr()
-                if self.sc.question("PART NUMBER: "+part_number+"\nDESCRIPTION: "+description+"\nSTORAGE CONDITIONS: "+sc+"\nREFRIGERATION: "+fridge+"\nMSDS: "+msds+"\nWould you like to update the database?"):
+                if self.sc.question("PART NUMBER: "+part_number+"\nDESCRIPTION: "+description+"\nSTORAGE CONDITIONS: "+sc+"\nREFRIGERATION: "+fridge+"\nMSDS: "+msds+"\nHARDNESS TESTING: "+hardness+"\nWould you like to update the database?"):
                     # update database "PART NUMBER","DESCRIPTION","STORAGE CONDITIONS","NICKNAME","FRIDGE","MSDS"
-                    self.CHEMICALS[part_number] = [description, sc, shortname, fridge, msds]
+                    self.CHEMICALS[part_number] = [description, sc, shortname, fridge, msds, hardness]
                     self.sc.save_database(self.path_chemicals_csv ,self.CHEMICALS)
                     self.sc.good("Database "+self.path_chemicals_csv+" Updated successfully!")
         else:
@@ -292,7 +294,10 @@ class main:
         # generate report data
         fridge_report = []
         closet_report = []
+        not_empty_part_numbers_fridge = []
+        not_empty_part_numbers_no_fridge = []
 
+        # get data for existing items
         for lot_number, arguments in self.LOTS.items():
             part_number = arguments[0]
             if part_number in self.CHEMICALS:
@@ -301,6 +306,7 @@ class main:
                 nickname = self.CHEMICALS[part_number][2]
                 fridge = self.CHEMICALS[part_number][3]
                 msds = self.CHEMICALS[part_number][4]
+                hardness = self.CHEMICALS[part_number][5]
                 exp = arguments[1]
                 if lot_number in stockcount:
                     qty = str(stockcount[lot_number])
@@ -308,9 +314,27 @@ class main:
                     qty = "0"
                 if qty != "0":
                     if fridge == "Y":
-                        fridge_report.append((part_number, description, sc, msds, lot_number, exp, qty))
+                        fridge_report.append((part_number, description, sc, msds, lot_number, hardness, exp, qty))
+                        if not part_number in not_empty_part_numbers_fridge:
+                            not_empty_part_numbers_fridge.append(part_number)
                     elif fridge == "N":
-                        closet_report.append((part_number, description, sc, msds, lot_number, exp, qty))
+                        closet_report.append((part_number, description, sc, msds, lot_number, hardness, exp, qty))
+                        if not part_number in not_empty_part_numbers_no_fridge:
+                            not_empty_part_numbers_no_fridge.append(part_number)
+
+        # get data for part numbers that have qty of zero
+        for part_number, data in self.CHEMICALS.items():
+            if part_number != "PART NUMBER":
+                if not part_number in not_empty_part_numbers_fridge and not part_number in not_empty_part_numbers_no_fridge:
+                    description = data[0]
+                    sc = data[1]
+                    fridge = data[3]
+                    msds = data[4]
+                    hardness = data[5]
+                    if fridge == "Y":
+                        fridge_report.append((part_number, description, sc, msds, "-N/A-", hardness, "-N/A-", "0"))
+                    else:
+                        closet_report.append((part_number, description, sc, msds, "-N/A-", hardness, "-N/A-", "0"))
 
         # make html
         self.make_html(self.path_main+"/Chemical-Fridge.html", fridge_report, "תכולת מקרר חומרים")
@@ -353,7 +377,7 @@ class main:
         file.write("<h1>"+header+"</h1>\n")
         file.write("<table>\n")
         file.write("<tr>\n")
-        file.write("<th>PN</th><th>DESCRIPTION</th><th>SC</th><th>MSDS</th><th>LOT</th><th>EXP</th><th>QTY</th>\n")
+        file.write("<th>PN</th><th>DESCRIPTION</th><th>SC</th><th>MSDS</th><th>HARDNESS TEST</th><th>LOT</th><th>EXP</th><th>QTY</th>\n")
         file.write("</tr>\n")
         for line in data:
             PART_NUMBER = line[0]
@@ -361,19 +385,21 @@ class main:
             STORAGE_CONDITIONS = line[2]
             MSDS = line[3]
             LOT_NUMBER = line[4]
-            EXPIRATION_DATE = line[5]
-            QTY = line[6]
+            HARDNESS_TEST = line[5]
+            EXPIRATION_DATE = line[6]
+            QTY = line[7]
             comment = ""
-            if self.sc.test_date(EXPIRATION_DATE):
-                compare_dates = self.sc.compare_dates(EXPIRATION_DATE, self.sc.today())
-                if compare_dates < 6 and compare_dates > 0:
-                    comment = "About to expire"
-                if compare_dates <= 0:
-                    comment = "Expired"
-            else:
-                comment = "Invalid expiration date"
+            if EXPIRATION_DATE != "-N/A-":
+                if self.sc.test_date(EXPIRATION_DATE):
+                    compare_dates = self.sc.compare_dates(EXPIRATION_DATE, self.sc.today())
+                    if compare_dates < 6 and compare_dates > 0:
+                        comment = "About to expire"
+                    if compare_dates <= 0:
+                        comment = "Expired"
+                else:
+                    comment = "Invalid expiration date"
             file.write("<tr>\n")
-            file.write("<td>"+PART_NUMBER+"</td><td>"+DESCRIPTION+"</td><td>"+STORAGE_CONDITIONS+"</td><td>"+MSDS+"</td><td>"+LOT_NUMBER+"</td><td>"+EXPIRATION_DATE+"  "+comment+"</td><td>"+QTY+"</td>\n")
+            file.write("<td>"+PART_NUMBER+"</td><td>"+DESCRIPTION+"</td><td>"+STORAGE_CONDITIONS+"</td><td>"+MSDS+"</td><td>"+HARDNESS_TEST+"</td><td>"+LOT_NUMBER+"</td><td>"+EXPIRATION_DATE+"  "+comment+"</td><td>"+QTY+"</td>\n")
             file.write("</tr>\n")
         file.write("</table>\n")
         file.write("</body>\n")
