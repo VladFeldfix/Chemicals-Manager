@@ -5,7 +5,7 @@ class main:
     # constructor
     def __init__(self):
         # load smart console
-        self.sc = SmartConsole("Chemical Manager", "5.1")
+        self.sc = SmartConsole("Chemical Manager", "2.0")
 
         # set-up main memu
         self.sc.add_main_menu_item("DO STOCK-COUNT", self.stockcount)
